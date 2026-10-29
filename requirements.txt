@@ -1,3 +1,4 @@
 trimesh>=5.1,<6
 fast-simplification>=0.2,<1
 lib3mf>=2.5,<3
+heatshrink2>=0.15,<0.16

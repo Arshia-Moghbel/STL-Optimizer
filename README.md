@@ -1,84 +1,86 @@
 # STL Optimizer
 
-**A tool for optimizing 3D models in STL format.**
+Convert common 3D-print mesh files to binary STL, reduce a mesh to a chosen
+maximum file size, and decode Prusa BGCode files to plain G-code. Processing is
+local: the program does not upload or alter the input file.
 
-STL Optimizer is a project focused on making STL mesh optimization easier and more accessible. It aims to provide a practical workflow for preparing 3D models for 3D printing and other mesh-processing tasks.
+## What is supported
 
-## ✨ Features
+| Input | Operation | Notes |
+| --- | --- | --- |
+| STL | Convert, optimize | STL does not declare units; it is treated as millimetres. |
+| 3MF | Convert, optimize | Build items, components, transforms, and the file's declared unit are applied. |
+| AMF / zipped AMF | Convert, optimize | Geometry is converted; STL cannot retain materials or colours. |
+| OBJ, PLY, OFF | Convert, optimize | These formats normally do not declare units; they are treated as millimetres. |
+| GLB, glTF | Convert, optimize | glTF metres are converted to millimetres. |
+| BGCode | Decode to G-code | Exact toolpath decode, **not** a reversible conversion to STL. |
 
-- STL file processing and optimization
-- Mesh analysis and validation
-- Configurable optimization options
-- Clear and reproducible workflows
-- Designed with extensibility in mind
+Formats such as STEP, IGES, FBX, DXF, and proprietary slicer projects need a
+CAD or slicer engine to tessellate their geometry. They are intentionally not
+silently converted because that can change scale or geometry. G-code and
+BGCode are already sliced printer toolpaths: the original surfaces, materials,
+and modelling history are no longer present, so an STL reconstructed from them
+would only be an approximation.
 
-> Note: Update this list to reflect the features currently implemented in the project.
+## Install
 
-## 🚀 Getting Started
-
-### Prerequisites
-
-Before getting started, make sure you have the tools and dependencies required by the project.
-
-trimesh>=5.1,<6
-fast-simplification>=0.2,<1
-lib3mf>=2.5,<3
-
-### Installation
-
-Clone the repository:
+Use a virtual environment so dependencies remain inside the project:
 
 ```bash
-git clone https://github.com/Arshia-Moghbel/STL-Optimizer.git
-cd STL-Optimizer
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
 ```
 
-Install the project dependencies according to the instructions for your chosen technology stack.
+## Usage
 
-### Usage
+### Convert a model to STL
 
-Run the application using the appropriate command for your environment.
+```bash
+.venv/bin/python optimize_stl.py "model.3mf" --mode convert
+```
 
-Example workflow:
+The default output is next to the input, for example
+`model_converted.stl`. Use `--output` to choose another path:
 
-1. Load an STL file.
-2. Configure the available optimization settings.
-3. Process the model.
-4. Export the optimized STL file.
-5. Verify the output before using it in your workflow.
+```bash
+.venv/bin/python optimize_stl.py "model.obj" --mode convert --output "output/model.stl"
+```
 
-The exact commands and options depend on the implemented features.
+### Reduce an STL or mesh size
 
-## 🛠️ Technology Stack
+```bash
+.venv/bin/python optimize_stl.py "model.stl" --mode optimize --target-mb 10
+```
 
-- **Language:** Python 3
-- **Mesh Processing:** Trimesh
-- **Mesh Simplification:** fast-simplification
-- **3D File Format Support:** STL and 3MF (via lib3mf)
-  
-## 🗺️ Roadmap
+Optimization writes a new `*_optimized.stl` file and never edits the original.
+It is necessarily lossy because it removes triangles. The program reports the
+final size, triangle count, watertight state after reopening the STL, and the
+relative bounding-box change. Always inspect an optimized result in your slicer
+before printing.
 
-- [ ] Implement the core STL optimization workflow
-- [ ] Add mesh validation and analysis
-- [ ] Improve error handling
-- [ ] Add automated tests
-- [ ] Expand documentation and usage examples
+### Decode BGCode without losing toolpaths
 
-## 🤝 Contributing
+```bash
+.venv/bin/python optimize_stl.py "print.bgcode" --mode decode
+```
 
-Contributions, bug reports, and feature suggestions are welcome.
+This writes `print_decoded.gcode`. BGCode uses compressed/encoded G-code
+blocks; decoding preserves the printer toolpath but does not recreate the
+original STL model.
 
-1. Fork the repository.
-2. Create a feature branch.
-3. Make your changes and add tests where appropriate.
-4. Submit a pull request describing your changes.
+## Verification
 
-Please keep contributions focused and include clear steps to reproduce any reported bugs.
+The repository includes representative STL, 3MF, and BGCode files locally for
+manual checks, but they are excluded from Git so the repository stays small.
+Run:
 
-## 📄 License
+```bash
+.venv/bin/python -m py_compile optimize_stl.py
+.venv/bin/python optimize_stl.py "Smurf.3mf" --mode convert
+.venv/bin/python optimize_stl.py "Macbook-Air-M2-stand.3mf-fixed.stl" --mode optimize --target-mb 1
+.venv/bin/python optimize_stl.py "Dragon whit Edges.bgcode" --mode decode
+```
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+## License
 
-## ⚠️ Disclaimer
-
-Always verify optimized mesh files before using them for manufacturing or 3D printing. Depending on the optimization method, geometry or mesh quality may change.
+MIT. See [LICENSE](LICENSE).
