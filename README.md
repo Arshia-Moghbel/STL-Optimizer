@@ -29,8 +29,8 @@ lib3mf>=2.5,<3
 Clone the repository:
 
 ```bash
-git clone https://github.com/Arshia-Moghbel/stl-optimizer.git
-cd stl-optimizer
+git clone https://github.com/Arshia-Moghbel/STL-Optimizer.git
+cd STL-Optimizer
 ```
 
 Install the project dependencies according to the instructions for your chosen technology stack.
