@@ -70,9 +70,9 @@ original STL model.
 
 ## Verification
 
-The repository includes representative STL, 3MF, and BGCode files locally for
-manual checks, but they are excluded from Git so the repository stays small.
-Run:
+Place representative STL, 3MF, and BGCode files beside the script for manual
+checks. They are intentionally excluded from Git so the repository stays
+small. Then run:
 
 ```bash
 .venv/bin/python -m py_compile optimize_stl.py

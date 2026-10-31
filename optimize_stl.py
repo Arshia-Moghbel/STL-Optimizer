@@ -31,6 +31,7 @@ MESH_EXTENSIONS = {".stl", ".obj", ".ply", ".off", ".glb", ".gltf", ".amf"}
 THREE_MF_EXTENSION = ".3mf"
 TOOLPATH_EXTENSIONS = {".gcode", ".bgcode"}
 MIN_BINARY_STL_BYTES = 84 + (4 * 50)
+MAX_BGCODE_BLOCK_BYTES = 1_000_000_000
 UNIT_TO_MM = {
     "micrometer": 0.001,
     "micron": 0.001,
@@ -73,7 +74,7 @@ def fail(message):
 
 
 def require_dependencies(source):
-    if trimesh is None:
+    if source.suffix.lower() != ".bgcode" and trimesh is None:
         fail("Missing dependency: trimesh. Run: pip install -r requirements.txt")
     if source.suffix.lower() == THREE_MF_EXTENSION and lib3mf is None:
         fail("Missing dependency for 3MF files: lib3mf. Run: pip install -r requirements.txt")
@@ -366,28 +367,45 @@ def decode_bgcode(source, output):
     raw = source.read_bytes()
     if len(raw) < 10 or raw[:4] != b"GCDE":
         fail("The file is not a supported BGCode file.")
-    version, _checksum = struct.unpack_from("<IH", raw, 4)
+    version, checksum_type = struct.unpack_from("<IH", raw, 4)
     if version != 1:
         fail(f"Unsupported BGCode version: {version}.")
+    if checksum_type not in {0, 1}:
+        fail(f"Unsupported BGCode checksum type: {checksum_type}.")
     offset, chunks = 10, []
     while offset < len(raw):
+        block_start = offset
         if offset + 8 > len(raw):
             fail("BGCode block header is truncated.")
         block_type, compression, uncompressed_size = struct.unpack_from("<HHI", raw, offset)
         offset += 8
+        if block_type not in {0, 1, 2, 3, 4, 5}:
+            fail(f"Unsupported BGCode block type: {block_type}.")
+        if compression not in {0, 1, 2, 3}:
+            fail(f"Unsupported BGCode compression type: {compression}.")
+        if uncompressed_size > MAX_BGCODE_BLOCK_BYTES:
+            fail("BGCode block is too large to decode safely.")
         stored_size = uncompressed_size
         if compression:
             if offset + 4 > len(raw):
                 fail("BGCode compressed block header is truncated.")
             stored_size = struct.unpack_from("<I", raw, offset)[0]
             offset += 4
+        if stored_size > MAX_BGCODE_BLOCK_BYTES:
+            fail("BGCode block is too large to decode safely.")
         parameter_size = 6 if block_type == 5 else 2
-        end = offset + parameter_size + stored_size + 4
+        checksum_size = 4 if checksum_type == 1 else 0
+        end = offset + parameter_size + stored_size + checksum_size
         if end > len(raw):
             fail("BGCode block is truncated.")
         encoding = struct.unpack_from("<H", raw, offset)[0]
         body_start = offset + parameter_size
         body = raw[body_start : body_start + stored_size]
+        if checksum_type == 1:
+            expected_checksum = struct.unpack_from("<I", raw, body_start + stored_size)[0]
+            actual_checksum = zlib.crc32(raw[block_start : body_start + stored_size])
+            if actual_checksum != expected_checksum:
+                fail("BGCode block checksum does not match; the file may be corrupted.")
         offset = end
         if block_type != 1:
             continue

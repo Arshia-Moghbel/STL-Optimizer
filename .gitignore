@@ -31,3 +31,6 @@ Thumbs.db
 *.stl
 *.3mf
 *.bgcode
+*_decoded.gcode
+*_converted.stl
+*_optimized.stl
