@@ -23,8 +23,9 @@ htmlcov/
 .vscode/
 .idea/
 
-# OS files
+# macOS
 .DS_Store
+**/.DS_Store
 Thumbs.db
 
 # Files for test
